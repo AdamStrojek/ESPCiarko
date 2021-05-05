@@ -10,8 +10,8 @@ uint8_t address[6]  = {0x00, 0x12, 0x6F, 0x9E, 0x4B, 0x99};
 const char *pin = "1234";
 bool connected;
 
-uint8_t plus_payload[3] = {0xF0, 0x01, 0xC7};
-uint8_t minus_payload[3] = {0xF0, 0x02, 0x25};
+uint8_t minus_payload[3] = {0xF0, 0x01, 0xC7};
+uint8_t plus_payload[3] = {0xF0, 0x02, 0x25};
 uint8_t timer_payload[3] = {0xF0, 0x03, 0x7B};
 uint8_t light_payload[3] = {0xF0, 0x04, 0xF8};
 
@@ -73,6 +73,7 @@ void loop() {
     case 0b01110111:
       light = 1;
       level = 0;
+      break;
     case 0b01000001:
       level = 1;
       break;
@@ -87,16 +88,28 @@ void loop() {
       break;
     }
 
-    if( target_level == 255) {
+    if( target_level > 4) {
       target_level = level;
     }
 
     Serial.printf("%d", level);
 
     if( dot ) {
-      Serial.println(".");
+      Serial.print(".");
     } else {
-      Serial.println();
+      Serial.print(" ");
+    }
+
+    Serial.printf(" T: %d\n", target_level);
+
+    if( level < target_level ) {
+      SerialBT.write(plus_payload, 3);
+      // SerialBT.flush();
+      Serial.println("PLUS+++++++++++++++++");
+    } else if ( level > target_level ) {
+      SerialBT.write(minus_payload, 3);
+      // SerialBT.flush();
+      Serial.println("MINUS----------------");
     }
   }
 
@@ -112,15 +125,9 @@ void loop() {
 
   if ( bounce_minus.changed() ) {
     int deboucedInput = bounce_minus.read();
-    if ( deboucedInput == HIGH && target_level > 1 ) {
+    if ( deboucedInput == HIGH && target_level > 0 ) {
       target_level--;
     }
-  }
-
-  if( level < target_level ) {
-    SerialBT.write(plus_payload, 3);
-  } else if ( level > target_level ) {
-    SerialBT.write(minus_payload, 3);
   }
 
   delay(20);
