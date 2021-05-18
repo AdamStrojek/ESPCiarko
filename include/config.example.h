@@ -11,4 +11,10 @@
 
 #define PIN_IR_RECEIVER GPIO_NUM_22
 
+#define WIFI_SSID "My WiFi"
+#define WIFI_PSWD "12345678"
+
+#define LOG_SINK_HOST "MacBook-Pro"
+#define LOG_SINK_PORT 12345
+
 #endif

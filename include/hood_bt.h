@@ -10,6 +10,8 @@
 
 void hood_bt_init();
 
+void hood_bt_halt();
+
 void hood_bt_process(Hood &current);
 
 void hood_bt_send_command(uint8_t cmd);

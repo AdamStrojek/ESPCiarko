@@ -6,6 +6,8 @@
 
 void hob2hood_ir_init();
 
+void hob2hood_ir_halt();
+
 void hob2hood_ir_process(Hood &target);
 
 #endif

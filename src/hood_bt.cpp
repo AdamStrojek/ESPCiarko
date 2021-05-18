@@ -1,7 +1,9 @@
 #include <Arduino.h>
 #include <BluetoothSerial.h>
+#include <CircularBuffer.h>
 
 #include "hood_bt.h"
+#include "log.h"
 #include "config.h"
 
 
@@ -19,6 +21,7 @@ uint8_t bt_payload[4][3] = {
 
 uint8_t dot = 0;
 uint8_t seven_segment = 0;
+uint8_t prev = 0;
 
 const uint8_t SEVEN_SEGMENT_BLANK = 0b0000000;
 const uint8_t SEVEN_SEGMENT_NUM[] = {
@@ -29,6 +32,8 @@ const uint8_t SEVEN_SEGMENT_NUM[] = {
     0b1001101,  // 4
 };
 const uint8_t SEVEN_SEGMENT_LEN = 5;
+
+CircularBuffer<uint8_t,10> cmds_queue;
 
 void hood_bt_init() {
     SerialBT.setPin(pin);
@@ -41,12 +46,16 @@ void hood_bt_init() {
     connected = SerialBT.connect(address);
   
     if(connected) {
-        Serial.println("BT: Connected Succesfully!");
+        log_print("BT: Connected Succesfully!");
     } else {
         while(!SerialBT.connected(10000)) {
-        Serial.println("BT: Failed to connect. Make sure remote device is available and in range, then restart app."); 
+            log_print("BT: Failed to connect. Make sure remote device is available and in range, then restart app."); 
         }
     }
+}
+
+void hood_bt_halt() {
+    SerialBT.disconnect();
 }
 
 void hood_bt_process(Hood &current) {
@@ -56,27 +65,34 @@ void hood_bt_process(Hood &current) {
         seven_segment |= SerialBT.read();  // second 4bits of 7 segment display
         (void)SerialBT.read();  // CRC8?
 
-        dot = seven_segment & 0b10000000;
-        seven_segment &= 0b01111111;
+        if( seven_segment != prev ) {
+            prev = seven_segment;
+            dot = seven_segment & 0b10000000;
+            seven_segment &= 0b01111111;
 
-        if( seven_segment == SEVEN_SEGMENT_BLANK) {
-            current.speed = 0;
-            current.light = 0;
-        } else {
-            for(uint8_t i = 0; i < SEVEN_SEGMENT_LEN; i++) {
-                if(seven_segment == SEVEN_SEGMENT_NUM[i]) {
-                    current.speed = i;
+            if( seven_segment == SEVEN_SEGMENT_BLANK) {
+                current.speed = 0;
+                current.light = 0;
+            } else {
+                for(uint8_t i = 0; i < SEVEN_SEGMENT_LEN; i++) {
+                    if(seven_segment == SEVEN_SEGMENT_NUM[i]) {
+                        current.speed = i;
+                    }
+                }
+
+                if( current.speed == 0 ) {
+                    current.light = 1;
                 }
             }
+        }
 
-            if( current.speed == 0 ) {
-                current.light = 1;
-            }
+        if(!cmds_queue.isEmpty()) {
+            SerialBT.write(bt_payload[cmds_queue.shift()], 3);
         }
     }
 }
 
 void hood_bt_send_command(uint8_t cmd) {
-    Serial.printf("Sending command %d\n", cmd);
-    SerialBT.write(bt_payload[cmd], 3);
+    log_print("Queue command " + String(cmd, 10));
+    cmds_queue.push(cmd);
 }
